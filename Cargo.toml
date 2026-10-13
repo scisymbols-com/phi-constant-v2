@@ -1,0 +1,10 @@
+[package]
+name = "phi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rug = { version = "1.30.0", default-features = false, features = ["float", "std"] }
+
+[profile.release]
+strip = "symbols"
