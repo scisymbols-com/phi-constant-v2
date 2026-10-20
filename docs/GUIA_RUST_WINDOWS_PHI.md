@@ -1,6 +1,6 @@
 # Guía completa de Rust en Windows: instalación, Cargo, GCC y cálculo del número áureo φ
 
-**Nivel:** principiante · **Sistema de referencia:** Windows 11 de 64 bits · **Terminales:** PowerShell y MSYS2 MinGW 64-bit · **Ejemplo:** `phi` · **Revisión:** 13 de octubre de 2026.
+**Nivel:** principiante · **Sistema de referencia:** Windows 11 de 64 bits · **Terminal:** MSYS2 MINGW64 · **Ejemplo:** `phi` · **Revisión:** 13 de octubre de 2026.
 
 > **Objetivo:** empezar desde cero (o desde Rust ya instalado), preparar todas las herramientas necesarias, crear el proyecto, incorporar `rug` y sus bibliotecas de precisión arbitraria, compilar un archivo `.exe` y ejecutarlo desde la línea de comandos con un parámetro que indique el número de cifras decimales deseadas.
 >
@@ -13,7 +13,7 @@
 3. [Instalar Rust o actualizarlo](#3-instalar-rust-o-actualizarlo)
 4. [Instalar MSYS2, GCC y herramientas de compilación](#4-instalar-msys2-gcc-y-herramientas-de-compilación)
 5. [Seleccionar Rust GNU para este proyecto](#5-seleccionar-rust-gnu-para-este-proyecto)
-6. [Configurar los terminales y comprobar las rutas](#6-configurar-los-terminales-y-comprobar-las-rutas)
+6. [Configurar MSYS2 MINGW64 y comprobar las rutas](#6-configurar-msys2-mingw64-y-comprobar-las-rutas)
 7. [Crear un proyecto o recuperar el existente](#7-crear-un-proyecto-o-recuperar-el-existente)
 8. [Instalar la dependencia `rug`](#8-instalar-la-dependencia-rug)
 9. [Preparar `src/main.rs` y entender el programa](#9-preparar-srcmainrs-y-entender-el-programa)
@@ -45,7 +45,7 @@
 | **`gmp-mpfr-sys`** | Enlace entre Rust y GMP/MPFR; puede compilar estas bibliotecas C desde su código fuente. | Sí, indirectamente. |
 | **GCC / MinGW-w64** | Compilador de C/C++ y herramientas de enlace de la familia GNU. | Sí, para construir las dependencias nativas en Windows. |
 | **MSYS2** | Proporciona GCC y utilidades Unix (`make`, `m4`, `diff`, etc.) en Windows. | Sí. |
-| **PowerShell** | Terminal de Windows. | Sí, para administrar el proyecto y ejecutar el `.exe`. |
+| **MSYS2 MINGW64** | Terminal Bash con el entorno MinGW-w64. | Sí, para instalar herramientas, compilar y ejecutar el proyecto. |
 
 **Distinción importante:** GCC no hace que Rust tenga números más grandes por sí mismo. El cálculo de alta precisión lo realiza `rug`, apoyado en **MPFR**; GCC permite construir las bibliotecas nativas utilizadas por el paquete. Rust ofrece enteros estándar como `u32`, `u64` o `u128`, y `f64` para coma flotante de precisión fija. Para miles de decimales de φ no basta con `f64`.
 
@@ -60,9 +60,9 @@
 
 ## 2. Comprobar el entorno actual
 
-Abre **Windows PowerShell** o **PowerShell 7** y ejecuta cada instrucción:
+Abre **MSYS2 MINGW64** y ejecuta cada instrucción:
 
-```powershell
+```bash
 rustup --version
 rustc --version
 cargo --version
@@ -73,15 +73,15 @@ rustc -vV
 
 Comprueba si GCC está disponible en esa terminal:
 
-```powershell
+```bash
 gcc --version
-Get-Command gcc -ErrorAction SilentlyContinue
+command -v gcc
 ```
 
 **Cómo interpretar la situación:**
 
 - Si `rustc` y `cargo` responden, Rust ya está instalado.
-- Si `gcc` muestra «no se reconoce como nombre de un cmdlet», **no significa que Rust esté mal instalado**: falta GCC en la ruta de búsqueda de PowerShell o todavía no se ha instalado.
+- Si `command -v gcc` no devuelve una ruta, **no significa que Rust esté mal instalado**: falta GCC en `PATH` o todavía no se ha instalado en MSYS2 MINGW64.
 - `rustc -vV` muestra una línea `host:`. Si termina en `-msvc`, estás usando la herramienta MSVC; si termina en `-gnu`, estás usando GNU.
 - `rustup toolchain list` enumera todas las variantes instaladas. Puede haber más de una.
 
@@ -97,10 +97,10 @@ Get-Command gcc -ErrorAction SilentlyContinue
 2. Descarga el instalador de Windows `rustup-init.exe` apropiado para tu sistema.
 3. Ejecútalo. Rust instalará `rustup`, `rustc` y `cargo`.
 4. Si el instalador pregunta por MSVC/Visual Studio, recuerda que el ejemplo de esta guía utilizará **GNU**; la variante GNU se puede agregar después sin sustituir los demás componentes.
-5. Cierra la terminal y abre una **nueva** ventana de PowerShell para actualizar la variable `PATH`.
+5. Cierra la terminal y abre una **nueva** ventana de MSYS2 MINGW64 para actualizar `PATH`.
 6. Comprueba que la instalación funciona:
 
-```powershell
+```bash
 rustup --version
 rustc --version
 cargo --version
@@ -109,22 +109,22 @@ cargo --version
 Normalmente, los ejecutables de Rust se encuentran en:
 
 ```text
-C:\Users\TU_USUARIO\.cargo\bin
+/c/Users/TU_USUARIO/.cargo/bin
 ```
 
 `rustup` suele añadir esa ruta automáticamente al `PATH`. Si los comandos no aparecen, revisa la sección 6.
 
 ### 3.2. Actualizar una instalación existente
 
-En PowerShell:
+En MSYS2 MINGW64:
 
-```powershell
+```bash
 rustup update
 ```
 
 Eso actualiza las **toolchains instaladas** (por ejemplo, `stable`); no actualiza las bibliotecas del proyecto ni GCC. Para ver las versiones resultantes:
 
-```powershell
+```bash
 rustup toolchain list
 rustc --version
 cargo --version
@@ -132,7 +132,7 @@ cargo --version
 
 Si quieres consultar la ayuda de estos comandos:
 
-```powershell
+```bash
 rustup help
 cargo --help
 rustc --help
@@ -140,15 +140,15 @@ rustc --help
 
 ### 3.3. Instalar Rust GNU de 64 bits
 
-En PowerShell:
+En MSYS2 MINGW64:
 
-```powershell
+```bash
 rustup toolchain install stable-x86_64-pc-windows-gnu
 ```
 
 Comprueba que ha quedado instalado:
 
-```powershell
+```bash
 rustup toolchain list
 ```
 
@@ -165,7 +165,7 @@ La documentación de `gmp-mpfr-sys` describe explícitamente el uso de **Rust GN
 1. Entra en **https://www.msys2.org/**.
 2. Descarga el instalador y acepta la ubicación habitual **`C:\msys64`**.
 3. Abre el acceso del menú Inicio llamado **«MSYS2 MinGW 64-bit»** o **«MSYS2 MINGW64»**.
-4. A partir de este apartado, los comandos `pacman` son para **esa terminal MSYS2**, no para PowerShell.
+4. Ejecuta los comandos `pacman` en esa terminal.
 
 **Atención: MINGW64 no es lo mismo que UCRT64.** MSYS2 también ofrece una consola `UCRT64` con paquetes de nombre `mingw-w64-ucrt-x86_64-*`. Para seguir exactamente esta receta, abre **MINGW64** e instala los paquetes `mingw-w64-x86_64-*`. No mezcles los dos conjuntos de rutas o paquetes.
 
@@ -232,13 +232,13 @@ Se puede cambiar la variante predeterminada para **todo el equipo**, pero suele 
 
 Cuando ya estés en la carpeta que contiene `Cargo.toml` (la crearemos en la sección 7), ejecuta:
 
-```powershell
+```bash
 rustup override set stable-x86_64-pc-windows-gnu
 ```
 
 A partir de entonces, Cargo y `rustc`, al ejecutarse desde esa carpeta, utilizarán GNU:
 
-```powershell
+```bash
 rustup show active-toolchain
 rustc -vV
 ```
@@ -251,13 +251,13 @@ host: x86_64-pc-windows-gnu
 
 Puedes consultar las anulaciones de configuración mediante:
 
-```powershell
+```bash
 rustup override list
 ```
 
 Para retirar la anulación desde esa misma carpeta:
 
-```powershell
+```bash
 rustup override unset
 ```
 
@@ -265,19 +265,19 @@ rustup override unset
 
 Úsala solo si realmente deseas ese comportamiento:
 
-```powershell
+```bash
 rustup default stable-x86_64-pc-windows-gnu
 ```
 
 Si tu instalación MSVC está disponible, puedes volver a seleccionarla con:
 
-```powershell
+```bash
 rustup default stable-x86_64-pc-windows-msvc
 ```
 
 ### Alternativa puntual: indicar la variante en cada comando
 
-```powershell
+```bash
 cargo +stable-x86_64-pc-windows-gnu build --release
 cargo +stable-x86_64-pc-windows-gnu run --release -- 1000
 ```
@@ -286,7 +286,7 @@ Con esta sintaxis, `+stable-x86_64-pc-windows-gnu` selecciona la herramienta par
 
 ---
 
-## 6. Configurar los terminales y comprobar las rutas
+## 6. Configurar MSYS2 MINGW64 y comprobar las rutas
 
 ### 6.1. Entender `PATH`
 
@@ -295,16 +295,16 @@ Con esta sintaxis, `+stable-x86_64-pc-windows-gnu` selecciona la herramienta par
 Rutas habituales:
 
 ```text
-Rust (Windows):       C:\Users\TU_USUARIO\.cargo\bin
-GCC (MSYS2 MINGW64):  C:\msys64\mingw64\bin
-Herramientas MSYS2:   C:\msys64\usr\bin
+Rust (Windows):       /c/Users/TU_USUARIO/.cargo/bin
+GCC (MSYS2 MINGW64):  /mingw64/bin
+Herramientas MSYS2:   /usr/bin
 ```
 
-**Recomendación:** compila el proyecto que usa `rug` desde **MSYS2 MINGW64**, ya que su entorno incluye las herramientas Unix que necesitan GMP/MPFR. Puedes gestionar el código y ejecutar el `.exe` final desde PowerShell. Agregar solo `gcc.exe` al `PATH` de PowerShell no garantiza que funcionen también los scripts de construcción de GMP/MPFR.
+**Recomendación:** realiza todo el flujo desde **MSYS2 MINGW64**, ya que su entorno incluye las herramientas Unix que necesitan GMP/MPFR.
 
 ### 6.2. Si MSYS2 no reconoce `cargo` o `rustc`
 
-Esto puede ocurrir aunque los comandos funcionen en PowerShell, porque MSYS2 puede utilizar un `PATH` restringido.
+Esto puede ocurrir si la instalación de Rust del usuario todavía no está incluida en el `PATH` de MSYS2.
 
 En **MSYS2 MINGW64**, añade temporalmente la ubicación de Rust, usando la carpeta real de tu usuario:
 
@@ -331,29 +331,33 @@ Esta asignación solo dura mientras esa terminal siga abierta. Una vez verifique
 
 **Nunca** añadas a ciegas distintas instalaciones de GCC o directorios completos de varias variantes MSYS2 al `PATH`: mezclar `MINGW64`, `UCRT64` y herramientas MSVC puede causar conflictos.
 
-### 6.3. Si quieres consultar GCC también desde PowerShell
+### 6.3. Comprobar las rutas activas
 
-Aunque para compilar con `rug` aconsejamos MSYS2, puedes hacer visible GCC en **la sesión actual** de PowerShell:
+En **MSYS2 MINGW64**:
 
-```powershell
-$env:Path = "C:\msys64\mingw64\bin;$env:Path"
-gcc --version
+```bash
+printf '%s\n' "$PATH"
+which cargo
+which rustc
+which gcc
+which make
+which m4
 ```
 
-Esta modificación desaparece al cerrar PowerShell. No convierte PowerShell en una consola MSYS2 y, por sí sola, no instala `make`, `m4` ni configura las demás herramientas Unix.
+`cargo` y `rustc` deberían resolverse desde la instalación de Rust del usuario; `gcc` debería resolverse bajo `/mingw64/bin`. Evita añadir rutas de UCRT64 o herramientas MSVC a esta sesión.
 
 ### 6.4. Evitar espacios en la ubicación del proyecto
 
 El sistema de construcción de `gmp-mpfr-sys` advierte de problemas con rutas que contienen espacios. Utiliza una carpeta sencilla, por ejemplo:
 
 ```text
-C:\proyectos\rust\phi
+/c/proyectos/rust/phi
 ```
 
 Mejor evitar para este proyecto:
 
 ```text
-C:\Mis proyectos Rust\Número áureo\
+/c/Mis proyectos Rust/Número áureo/
 ```
 
 ---
@@ -362,10 +366,10 @@ C:\Mis proyectos Rust\Número áureo\
 
 ### 7.1. Crear un proyecto nuevo con Cargo
 
-En PowerShell (o, una vez preparado Rust, en MSYS2):
+En MSYS2 MINGW64:
 
-```powershell
-cd C:\proyectos\rust
+```bash
+cd /c/proyectos/rust
 cargo new phi
 cd phi
 ```
@@ -389,11 +393,11 @@ Archivos importantes:
 - **`target/`**: aparece al compilar y contiene archivos intermedios y ejecutables.
 - **`.gitignore`**: normalmente impide subir `target/` al repositorio.
 
-Para comprobar la ubicación actual en PowerShell:
+Para comprobar la ubicación actual:
 
-```powershell
-Get-Location
-Get-ChildItem
+```bash
+pwd
+ls
 ```
 
 Para compilar después con MSYS2 MINGW64, entra en el mismo directorio usando barras Unix:
@@ -408,20 +412,20 @@ ls
 
 **No ejecutes `cargo new` otra vez.** Entra directamente al proyecto:
 
-```powershell
-cd C:\proyectos\rust\phi
-Get-ChildItem
-Get-Content .\Cargo.toml
+```bash
+cd /c/proyectos/rust/phi
+ls
+cat Cargo.toml
 ```
 
-Verifica que existe `src\main.rs`; si tu código está en un archivo `main.rs` independiente, colócalo en esa subcarpeta.
+Verifica que existe `src/main.rs`; si tu código está en un archivo `main.rs` independiente, colócalo en esa subcarpeta.
 
 ### 7.3. Si la carpeta existe pero aún no es un proyecto Cargo
 
-En PowerShell:
+En MSYS2 MINGW64:
 
-```powershell
-cd C:\proyectos\rust\phi
+```bash
+cd /c/proyectos/rust/phi
 cargo init --bin
 ```
 
@@ -431,7 +435,7 @@ cargo init --bin
 
 Desde **la carpeta raíz del proyecto**:
 
-```powershell
+```bash
 rustup override set stable-x86_64-pc-windows-gnu
 rustup show active-toolchain
 ```
@@ -448,7 +452,7 @@ En Rust, normalmente no se instalan las bibliotecas «en Windows» para todos lo
 
 En el directorio que contiene `Cargo.toml`:
 
-```powershell
+```bash
 cargo add rug
 ```
 
@@ -463,7 +467,7 @@ La versión exacta que aparezca dependerá de la disponible al ejecutar el coman
 
 Para el archivo original de φ, **no hacen falta** las dependencias `num-bigint` ni `num-traits`: el código utiliza `rug::Float`, no sus tipos o interfaces. Si las añadiste exclusivamente para este programa y no se usan en otra parte, las puedes retirar:
 
-```powershell
+```bash
 cargo remove num-bigint
 cargo remove num-traits
 ```
@@ -474,7 +478,7 @@ Si no existen, no ejecutes esas órdenes; no son necesarias.
 
 `rug` ofrece distintas funciones opcionales. Este programa solo necesita números `Float` y la biblioteca estándar para convertir el resultado en `String`. Se pueden desactivar las funciones que no utilizamos:
 
-```powershell
+```bash
 cargo add rug --no-default-features --features float,std
 ```
 
@@ -495,7 +499,7 @@ La **primera compilación** puede dedicar bastante trabajo a GMP/MPFR; compilaci
 
 ### 8.4. Ver qué dependencias utiliza el proyecto
 
-```powershell
+```bash
 cargo tree
 ```
 
@@ -623,7 +627,7 @@ fn main() {
 Ubicación en el proyecto:
 
 ```text
-C:\proyectos\rust\phi\src\main.rs
+/c/proyectos/rust/phi/src/main.rs
 ```
 
 Puede editarse con Visual Studio Code, cualquier editor de texto o un IDE compatible con Rust. Se recomienda guardar en **UTF-8** para conservar los caracteres `φ` y `√`.
@@ -763,10 +767,10 @@ El ejecutable optimizado aparecerá en:
 target/release/phi.exe
 ```
 
-En PowerShell, la ruta equivalente es:
+En MSYS2 MINGW64, la ruta equivalente es:
 
-```powershell
-.\target\release\phi.exe
+```bash
+./target/release/phi.exe
 ```
 
 **`release` no significa que el ejecutable se haya instalado globalmente.** Solo indica que Cargo lo ha generado con el perfil optimizado.
@@ -781,7 +785,7 @@ cargo run -- 20
 cargo run --release -- 1000
 ```
 
-En PowerShell se utilizan las mismas órdenes `cargo run` si el entorno de compilación está configurado correctamente, aunque **para este proyecto la compilación desde MINGW64 es la ruta aconsejada**.
+Las mismas órdenes `cargo run` compilan y ejecutan el programa dentro de MSYS2 MINGW64.
 
 **Explicación del separador `--`:**
 
@@ -818,50 +822,38 @@ rustup component add rustfmt clippy
 
 ## 12. Ejecutar directamente el `.exe` con argumentos
 
-Una vez compilado el programa, **no necesitas utilizar `cargo run` para ejecutarlo**. Puedes invocar el `.exe` directamente y pasar los parámetros.
+Una vez compilado el programa, no necesitas utilizar `cargo run`. Puedes invocar el ejecutable directamente desde MSYS2 MINGW64.
 
-### 12.1. Desde PowerShell, en la carpeta del proyecto
-
-```powershell
-cd C:\proyectos\rust\phi
-
-# 1.000 decimales (valor predeterminado):
-.\target\release\phi.exe
-
-# 20 decimales:
-.\target\release\phi.exe 20
-
-# 100 decimales:
-.\target\release\phi.exe 100
-
-# 1.000 decimales:
-.\target\release\phi.exe 1000
-
-# 10.000 decimales:
-.\target\release\phi.exe 10000
-```
-
-**Muy importante:** PowerShell no ejecuta automáticamente programas del directorio actual por su nombre. Ante una ruta relativa hay que colocar `.\` al principio, como en `.\target\release\phi.exe`.
-
-### 12.2. Desde MSYS2 MINGW64
+### 12.1. Desde la carpeta del proyecto
 
 ```bash
+cd /c/proyectos/rust/phi
+
+# 1.000 decimales (valor predeterminado):
+./target/release/phi.exe
+
+# 20 decimales:
+./target/release/phi.exe 20
+
+# 100 decimales:
+./target/release/phi.exe 100
+
+# 1.000 decimales:
 ./target/release/phi.exe 1000
+
+# 10.000 decimales:
+./target/release/phi.exe 10000
 ```
 
-En la terminal Bash de MSYS2 las rutas usan `/` y el ejecutable local se invoca con `./`.
+En Bash, un ejecutable indicado mediante una ruta relativa se invoca con el prefijo `./`.
 
-### 12.3. Ejecutar desde otra carpeta utilizando una ruta absoluta
+### 12.2. Desde otra carpeta utilizando una ruta absoluta
 
-En PowerShell:
-
-```powershell
-& "C:\proyectos\rust\phi\target\release\phi.exe" 1000
+```bash
+/c/proyectos/rust/phi/target/release/phi.exe 1000
 ```
 
-El operador `&` es útil para ejecutar rutas entre comillas, especialmente si contienen espacios. Aunque el **proyecto al compilar** se recomienda sin espacios, puedes guardar el `.exe` compilado donde corresponda.
-
-### 12.4. Comportamiento previsto de los parámetros
+### 12.3. Comportamiento previsto de los parámetros
 
 | Instrucción | Comportamiento |
 |---|---|
@@ -874,7 +866,7 @@ El operador `&` es útil para ejecutar rutas entre comillas, especialmente si co
 | `...exe 0` | Muestra error: el mínimo didáctico es 1. |
 | `...exe 1000 otro` | Muestra el modo de empleo: hay demasiados argumentos. |
 
-### 12.5. Ejemplo de salida (20 decimales)
+### 12.4. Ejemplo de salida (20 decimales)
 
 ```text
 Fórmula: φ = (1 + √5) / 2
@@ -884,14 +876,14 @@ Resultado:
 1.61803398874989484820
 ```
 
-La cifra de bits mostrada corresponde al cálculo de esta versión; no se debe confundir con los decimales impresos. La representación utiliza el **punto** como separador decimal, según el formato numérico elegido por `to_string_radix`.
+La cifra de bits mostrada corresponde a la precisión interna; no se debe confundir con los decimales impresos. La representación utiliza el punto como separador decimal.
 
-### 12.6. Consultar el código de salida
+### 12.5. Consultar el código de salida
 
-En PowerShell, tras ejecutar el programa:
+Después de ejecutar el programa:
 
-```powershell
-$LASTEXITCODE
+```bash
+echo $?
 ```
 
 - `0`: ejecución terminada con éxito.
@@ -903,40 +895,29 @@ $LASTEXITCODE
 
 ### 13.1. Guardar la salida en un archivo de texto
 
-En **PowerShell**:
-
-```powershell
-.\target\release\phi.exe 1000 | Out-File -FilePath .\phi_1000.txt -Encoding utf8
-```
-
-Puedes abrir el resultado:
-
-```powershell
-Get-Content .\phi_1000.txt
-```
-
-O inspeccionar su existencia:
-
-```powershell
-Get-Item .\phi_1000.txt
-```
-
-En **MSYS2 MINGW64**:
+En MSYS2 MINGW64:
 
 ```bash
 ./target/release/phi.exe 1000 > phi_1000.txt
 ```
 
-Los ejemplos guardan el **texto completo de la consola**, incluidos encabezados y número. Si quisieras generar un archivo que contenga exclusivamente los dígitos de φ, habría que modificar el programa para enviar los encabezados a `stderr` o añadir un modo de salida especial.
+Puedes inspeccionar el resultado:
+
+```bash
+cat phi_1000.txt
+ls -l phi_1000.txt
+```
+
+El archivo contiene el texto completo de la consola, incluidos los encabezados y el número. Para guardar exclusivamente los dígitos de φ habría que modificar el programa.
 
 ### 13.2. Copiar el ejecutable a otra carpeta
 
-Desde PowerShell:
+Desde MSYS2 MINGW64:
 
-```powershell
-New-Item -ItemType Directory -Force .\distribucion | Out-Null
-Copy-Item .\target\release\phi.exe .\distribucion\
-.\distribucion\phi.exe 100
+```bash
+mkdir -p distribucion
+cp target/release/phi.exe distribucion/
+./distribucion/phi.exe 100
 ```
 
 La carpeta `distribucion` no es obligatoria; es simplemente un ejemplo.
@@ -955,7 +936,7 @@ Para identificar dependencias en el entorno MinGW se puede usar una herramienta 
 
 Para limpiar artefactos de compilación:
 
-```powershell
+```bash
 cargo clean
 ```
 
@@ -969,9 +950,9 @@ cargo clean
 
 ### 14.1. Rust, Cargo y componentes de las toolchains
 
-En PowerShell:
+En MSYS2 MINGW64:
 
-```powershell
+```bash
 rustup update
 rustup toolchain list
 rustc --version
@@ -1002,7 +983,7 @@ m4 --version
 
 Desde la carpeta que contiene `Cargo.toml`:
 
-```powershell
+```bash
 cargo update
 ```
 
@@ -1010,13 +991,13 @@ cargo update
 
 Para actualizar selectivamente un paquete concreto dentro de sus restricciones:
 
-```powershell
+```bash
 cargo update rug
 ```
 
 Si quieres modificar las características con las que se utiliza `rug`:
 
-```powershell
+```bash
 cargo add rug --no-default-features --features float,std
 ```
 
@@ -1040,13 +1021,13 @@ Es recomendable revisar los cambios en `Cargo.lock` antes de confirmarlos en Git
 
 ### «`gcc` no se reconoce como comando»
 
-**Causa habitual:** GCC no está instalado o PowerShell no tiene su carpeta en `PATH`.
+**Causa habitual:** GCC no está instalado en MSYS2 MINGW64 o `/mingw64/bin` no está en `PATH`.
 
-**Solución recomendada:** instala MSYS2, abre **MINGW64** e instala `mingw-w64-x86_64-gcc`; verifica con `gcc --version` **dentro de esa terminal**. No confundas «no disponible en PowerShell» con «no instalado en MSYS2».
+**Solución recomendada:** abre **MSYS2 MINGW64**, instala `mingw-w64-x86_64-gcc` y verifica allí `gcc --version` y `which gcc`.
 
 ### «`cargo` no se reconoce» en MSYS2
 
-**Causa:** MSYS2 no está viendo `C:\Users\...\.cargo\bin`.
+**Causa:** MSYS2 no está viendo `/c/Users/.../.cargo/bin`.
 
 **Solución:**
 
@@ -1115,7 +1096,7 @@ Asegúrate de tener activa `stable-x86_64-pc-windows-gnu` y de trabajar en una c
 
 **Causa:** el sistema de compilación nativo de `gmp-mpfr-sys` no admite ciertas rutas con espacios.
 
-**Solución:** mueve el proyecto a `C:\proyectos\rust\phi`. Si el problema proviene también de carpetas internas del usuario, puede ser necesario establecer rutas personalizadas sin espacios para las cachés y/o el directorio de Cargo; es una configuración avanzada que solo se recomienda cuando se identifica esa causa.
+**Solución:** mueve el proyecto a `/c/proyectos/rust/phi`. Si el problema proviene también de carpetas internas del usuario, puede ser necesario establecer rutas personalizadas sin espacios para las cachés y/o el directorio de Cargo; es una configuración avanzada que solo se recomienda cuando se identifica esa causa.
 
 ### `linker 'link.exe' not found`
 
@@ -1135,19 +1116,19 @@ Asegúrate de tener activa `stable-x86_64-pc-windows-gnu` y de trabajar en una c
 
 **Solución:** entra en el directorio raíz, por ejemplo:
 
-```powershell
-cd C:\proyectos\rust\phi
-Get-ChildItem Cargo.toml
+```bash
+cd /c/proyectos/rust/phi
+ls -l Cargo.toml
 ```
 
-### En PowerShell, escribir `phi.exe 1000` no lo ejecuta
+### Escribir `phi.exe 1000` no lo ejecuta
 
-**Causa:** PowerShell no busca automáticamente ejecutables en el directorio actual.
+**Causa:** Bash no busca automáticamente ejecutables en el directorio actual.
 
-**Solución:** utiliza la ruta relativa con `.\`:
+**Solución:** utiliza la ruta relativa con `./`:
 
-```powershell
-.\target\release\phi.exe 1000
+```bash
+./target/release/phi.exe 1000
 ```
 
 ### `cargo run --release 1000` no pasa bien el parámetro
@@ -1184,7 +1165,7 @@ Al ejecutar el `.exe` directamente no necesitas ese separador.
 
 **Causa posible:** consola o editor configurados con una codificación que no representa esos caracteres.
 
-**Solución:** guarda los archivos Rust en UTF-8, utiliza una consola moderna y, para guardar la salida desde PowerShell, usa `Out-File -Encoding utf8`.
+**Solución:** guarda los archivos Rust en UTF-8 y utiliza una configuración regional UTF-8 en MSYS2 MINGW64.
 
 ---
 
@@ -1248,9 +1229,9 @@ Para enteros extremadamente grandes se puede utilizar `rug::Integer`; para valor
 
 ## 17. Referencia rápida de comandos
 
-### 17.1. Instalación y actualización (PowerShell)
+### 17.1. Instalación y actualización (MSYS2 MINGW64)
 
-```powershell
+```bash
 # Verificar Rust:
 rustup --version
 rustc --version
@@ -1275,17 +1256,17 @@ pacman -S --needed diffutils m4 make mingw-w64-x86_64-gcc
 gcc --version
 ```
 
-### 17.3. Crear el proyecto (PowerShell)
+### 17.3. Crear el proyecto (MSYS2 MINGW64)
 
-```powershell
-cd C:\proyectos\rust
+```bash
+cd /c/proyectos/rust
 cargo new phi
 cd phi
 rustup override set stable-x86_64-pc-windows-gnu
 cargo add rug --no-default-features --features float,std
 ```
 
-**Después:** pegar el código de la sección 9.2 en `src\main.rs`.
+**Después:** pegar el código de la sección 9.2 en `src/main.rs`.
 
 ### 17.4. Compilar (MSYS2 MINGW64)
 
@@ -1297,13 +1278,13 @@ gcc --version
 cargo build --release
 ```
 
-### 17.5. Ejecutar el `.exe` (PowerShell)
+### 17.5. Ejecutar el `.exe` (MSYS2 MINGW64)
 
-```powershell
-cd C:\proyectos\rust\phi
-.\target\release\phi.exe 20
-.\target\release\phi.exe 1000
-.\target\release\phi.exe 10000
+```bash
+cd /c/proyectos/rust/phi
+./target/release/phi.exe 20
+./target/release/phi.exe 1000
+./target/release/phi.exe 10000
 ```
 
 ### 17.6. Ejecutar con Cargo (MSYS2 MINGW64)
@@ -1347,22 +1328,22 @@ Estas páginas permiten contrastar los procedimientos cuando aparezcan nuevas ve
 Al terminar tendrás:
 
 ```text
-C:\proyectos\rust\phi\
+/c/proyectos/rust/phi/
 ├── Cargo.toml
 ├── Cargo.lock
-├── src\
+├── src/
 │   └── main.rs
-└── target\
-    ├── debug\
+└── target/
+    ├── debug/
     │   └── phi.exe
-    └── release\
+    └── release/
         └── phi.exe
 ```
 
-Y podrás ejecutar directamente desde PowerShell:
+Y podrás ejecutar directamente desde MSYS2 MINGW64:
 
-```powershell
-.\target\release\phi.exe 1000
+```bash
+./target/release/phi.exe 1000
 ```
 
 **Conclusión:** `rustup` mantiene Rust, Cargo administra el proyecto y sus crates, MSYS2/GCC permite construir las bibliotecas nativas y el `.exe` resultante acepta la precisión decimal mediante un argumento opcional. Para este cálculo no es necesario programar directamente en C ni invocar GCC a mano.
